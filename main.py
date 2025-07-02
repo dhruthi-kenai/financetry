@@ -23,10 +23,14 @@ st.markdown("""
 
 # 🧭 Top row: logo + title + reindex button
 topcol1, topcol2 = st.columns([6, 1])
+
 with topcol1:
-    logo_path = "kenai_logo1.png"
-    st.image(logo_path, width=100)
-    st.title(" Finance Chatbot")
+    # Split the left column into two for logo and title
+    logo_col, title_col = st.columns([1, 5])
+    with logo_col:
+        st.image("kenai_logo1.png", width=60)
+    with title_col:
+        st.markdown("<h1 style='margin-bottom: 0;'>💬 Finance Chatbot</h1>", unsafe_allow_html=True)
 
 with topcol2:
     if st.button("♻️ Reindex Docs"):
