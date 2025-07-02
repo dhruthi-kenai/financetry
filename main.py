@@ -26,7 +26,7 @@ topcol1, topcol2 = st.columns([6, 1])
 with topcol1:
     logo_path = "kenai_logo1.png"
     st.image(logo_path, width=100)
-    st.title("💬 Finance Chatbot")
+    st.title(" Finance Chatbot")
 
 with topcol2:
     if st.button("♻️ Reindex Docs"):
