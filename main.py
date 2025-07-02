@@ -25,15 +25,13 @@ st.markdown("""
 topcol1, topcol2 = st.columns([6, 1])
 
 with topcol1:
-    st.markdown(
-        """
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <img src="https://raw.githubusercontent.com/drhuthikenai/assets/main/kenai_logo1.png" alt="Kenai Logo" width="100">
-            <h1 style="margin: 0;"> Finance Chatbot</h1>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    # Smaller gap between logo and title by adjusting column ratios
+    logo_col, title_col = st.columns([1, 6])
+    with logo_col:
+        st.image("kenai_logo1.png", align-items: center; gap: 10;)  # Increased from 60 to 80
+    with title_col:
+        st.markdown("<h1 style='margin-bottom: 0; padding-top: 10px;'> Finance Chatbot</h1>", unsafe_allow_html=True)
+
 with topcol2:
     if st.button("♻️ Reindex Docs"):
         with st.spinner("Reindexing SharePoint documents..."):
