@@ -25,12 +25,12 @@ st.markdown("""
 topcol1, topcol2 = st.columns([6, 1])
 
 with topcol1:
-    # Split the left column into two for logo and title
-    logo_col, title_col = st.columns([1, 5])
+    # Smaller gap between logo and title by adjusting column ratios
+    logo_col, title_col = st.columns([1, 6])
     with logo_col:
-        st.image("kenai_logo1.png", width=100)
+        st.image("kenai_logo1.png", width=80)  # Increased from 60 to 80
     with title_col:
-        st.markdown("<h1 style='margin-bottom: 0;'> Finance Chatbot</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='margin-bottom: 0; padding-top: 10px;'> Finance Chatbot</h1>", unsafe_allow_html=True)
 
 with topcol2:
     if st.button("♻️ Reindex Docs"):
