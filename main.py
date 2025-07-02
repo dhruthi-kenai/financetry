@@ -5,10 +5,10 @@ from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
 
-# 📦 Page setup
+# Page setup
 st.set_page_config(page_title="💰 Finance Chatbot", layout="wide")
 
-# 💄 CSS: Clean layout with white background
+# CSS styling
 st.markdown("""
     <style>
     body, .stApp {
@@ -21,36 +21,67 @@ st.markdown("""
     div[data-testid="column"] {
         padding-bottom: 0rem;
     }
-    img {
-        margin-top: 10px;
+    .header-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
-    h1 {
-        color: #d62828;
+    .header-logo {
+        height: 38px;
+        margin-right: 8px;
+    }
+    .header-title {
+        font-size: 32px;
+        font-weight: bold;
+        color: #d11b1b;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# 🧭 Top row: Kenai logo + title
-topcol1, topcol2 = st.columns([1, 5])
+# Header row: Logo + Title + Chat Icon
+topcol1, topcol2 = st.columns([6, 1])
 with topcol1:
-    st.image("kenai_logo1.png", width=90)
+    st.markdown(
+        """
+        <div class="header-container">
+            <img src="https://raw.githubusercontent.com/drhuthikenai/assets/main/kenai_logo.png" class="header-logo" />
+            <img src="https://cdn-icons-png.flaticon.com/512/2462/2462719.png" class="header-logo" />
+            <span class="header-title">Finance Chatbot</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 with topcol2:
-    st.title("💬 Finance Chatbot")
+    st.write("")  # Spacer
+    st.write("")  # Spacer
+    if st.button("♻️ Reindex Docs"):
+        with st.spinner("Reindexing SharePoint documents..."):
+            try:
+                docs = fetch_txt_files_from_sharepoint()
+                if not docs:
+                    st.error("No documents found in SharePoint.")
+                else:
+                    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+                    chunks = splitter.split_documents(docs)
+                    vectorstore = FAISS.from_documents(chunks, embeddings)
+                    vectorstore.save_local("./vector_index")
+                    st.success("✅ Reindexing complete.")
+            except Exception as e:
+                st.error(f"❌ Reindexing failed: {e}")
 
-# 💬 Chat input form directly below title
+# Initialize chat history
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# Chat input form
 with st.form("chat_form", clear_on_submit=True):
     col1, col2 = st.columns([5, 1])
     with col1:
-        query = st.text_input(
-            "Ask a finance-related question:",
-            key="query",
-            label_visibility="collapsed",
-            placeholder="e.g. Show all paid invoices"
-        )
+        query = st.text_input("e.g. Show all paid invoices", key="query", label_visibility="collapsed")
     with col2:
         submitted = st.form_submit_button("Submit")
 
-# 🧠 Process query
+# Process query
 if submitted and query:
     with st.spinner("Thinking..."):
         try:
@@ -60,28 +91,7 @@ if submitted and query:
         except Exception as e:
             st.session_state.chat_history.insert(0, ("Error", f"Something went wrong: {e}"))
 
-# 🔁 Reindex Docs Button
-st.divider()
-st.subheader("Document Management")
-if st.button("♻️ Reindex Docs"):
-    with st.spinner("Reindexing SharePoint documents..."):
-        try:
-            docs = fetch_txt_files_from_sharepoint()
-            if not docs:
-                st.error("No documents found in SharePoint.")
-            else:
-                splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-                chunks = splitter.split_documents(docs)
-                vectorstore = FAISS.from_documents(chunks, embeddings)
-                vectorstore.save_local("./vector_index")
-                st.success("✅ Reindexing complete.")
-        except Exception as e:
-            st.error(f"❌ Reindexing failed: {e}")
-
-# 🪵 Show chat history
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
+# Display chat history
 for role, content in st.session_state.chat_history:
     if isinstance(content, pd.DataFrame):
         if role == "You":
