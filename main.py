@@ -5,15 +5,12 @@ from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 import os
 
-# Page setup
+# 📦 Page setup
 st.set_page_config(page_title="💰 Finance Chatbot", layout="wide")
 
-# CSS styling
+# 💄 CSS: Clean layout
 st.markdown("""
     <style>
-    body, .stApp {
-        background-color: white;
-    }
     div[data-testid="stForm"] {
         border: none;
         padding: 0;
@@ -21,39 +18,17 @@ st.markdown("""
     div[data-testid="column"] {
         padding-bottom: 0rem;
     }
-    .header-container {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .header-logo {
-        height: 38px;
-        margin-right: 8px;
-    }
-    .header-title {
-        font-size: 32px;
-        font-weight: bold;
-        color: #d11b1b;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# Header row: Logo + Title + Chat Icon
+# 🧭 Top row: logo + title + reindex button
 topcol1, topcol2 = st.columns([6, 1])
 with topcol1:
-    st.markdown(
-        """
-        <div class="header-container">
-            <img src="https://raw.githubusercontent.com/drhuthikenai/assets/main/kenai_logo.png" class="header-logo" />
-            <img src="https://cdn-icons-png.flaticon.com/512/2462/2462719.png" class="header-logo" />
-            <span class="header-title">Finance Chatbot</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    logo_path = "kenai_logo1.png"
+    st.image(logo_path, width=100)
+    st.title("💬 Finance Chatbot")
+
 with topcol2:
-    st.write("")  # Spacer
-    st.write("")  # Spacer
     if st.button("♻️ Reindex Docs"):
         with st.spinner("Reindexing SharePoint documents..."):
             try:
@@ -69,19 +44,19 @@ with topcol2:
             except Exception as e:
                 st.error(f"❌ Reindexing failed: {e}")
 
-# Initialize chat history
+# 🔁 Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Chat input form
+# 💬 Chat input form
 with st.form("chat_form", clear_on_submit=True):
     col1, col2 = st.columns([5, 1])
     with col1:
-        query = st.text_input("e.g. Show all paid invoices", key="query", label_visibility="collapsed")
+        query = st.text_input("Ask a finance-related question:", key="query", label_visibility="collapsed")
     with col2:
         submitted = st.form_submit_button("Submit")
 
-# Process query
+# 🧠 Process query
 if submitted and query:
     with st.spinner("Thinking..."):
         try:
@@ -91,7 +66,7 @@ if submitted and query:
         except Exception as e:
             st.session_state.chat_history.insert(0, ("Error", f"Something went wrong: {e}"))
 
-# Display chat history
+# 🪵 Show chat history
 for role, content in st.session_state.chat_history:
     if isinstance(content, pd.DataFrame):
         if role == "You":
@@ -102,6 +77,6 @@ for role, content in st.session_state.chat_history:
             st.info("No data found.")
     else:
         if role == "You":
-            st.markdown(f"**You:** {content}")
+            st.markdown(f"<div style='font-weight:bold; font-size:18px;'>🧍‍♂️ You: {content}</div>", unsafe_allow_html=True)
         else:
-            st.markdown(content)
+            st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px;'>🤖 {content}</div>", unsafe_allow_html=True)
