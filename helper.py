@@ -196,12 +196,12 @@ Columns:
 
 ---
 Instructions:
-- If the query is about structured finance data (e.g. invoices, payments, balances), return only a SQL query without explanation.
+- If the query is about structured finance data (e.g., invoices, payments, balances), return only a SQL query without explanation.
 - If the query is about policy, process, accounting rules, or how-to (like 'how to reverse a journal entry'), respond only with: DOCUMENT
 - Always use the correct table and column names.
 - Never invent a table or column.
 - If the user asks for all invoices or a summary of invoices, return a SQL query that combines both ap_invoices and ar_invoices using a UNION ALL. Make sure the column names match exactly (alias where necessary, e.g., vendor_id/customer_id to entity_id, and convert payment_received to payment_status using CASE WHEN payment_received THEN 'Paid' ELSE 'Unpaid' END).
- 
+
 For consistency:
 - In the final output (not the SQL), treat vendor_id and customer_id as a common entity_id.
 - In the final output, treat payment_status and payment_received both as payment_status with values 'Paid'/'Unpaid'.
@@ -224,7 +224,7 @@ Answer:
 
         table_text = result_df.to_markdown(index=False)
         summary_prompt = f"""You are a finance assistant. Convert the following SQL result into a clear, human-readable summary.
-If the data is tabular and has multiple rows, or is best presented as a table for clarity, include a markdown table in your response. Use markdown for tables only when required or helpful (e.g., for lists of invoices, payments, or balances); otherwise, use plain text summaries. Avoid using markdown headers like ###.
+If the data is tabular and has multiple rows, or is best presented as a table for clarity (e.g., lists of invoices, payments, or balances), include a markdown table in your response with relevant columns (e.g., Invoice Type, Total Invoices, Unpaid Invoices, Paid Invoices, Amount Range, Due Date Range, Payment Date Range). For summary queries like 'show all invoices,' provide a table summarizing key metrics (e.g., counts, ranges) by invoice type (AP/AR). Use plain text summaries for non-tabular data or single-row results. Avoid using markdown headers like ###.
 
 SQL Output:
 {table_text}
