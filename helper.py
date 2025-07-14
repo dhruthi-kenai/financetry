@@ -10,6 +10,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
 from sentence_transformers import SentenceTransformer
 import streamlit as st
+import time
+import re
 
 # Load environment variables (uncomment if not using Streamlit secrets exclusively)
 # load_dotenv()
@@ -82,8 +84,8 @@ def get_context_from_docs(user_query):
     results = vectorstore.similarity_search(user_query, k=1)
     return results[0].page_content if results else "No relevant document found."
 
-# 💬 Mistral LLM
-def call_llm(prompt):
+# 💬 Mistral LLM with Retry Logic
+def call_llm(prompt, max_retries=3):
     mistral_api_key = st.secrets["MISTRAL_API_KEY"]
     headers = {
         "Authorization": f"Bearer {mistral_api_key}",
@@ -96,9 +98,19 @@ def call_llm(prompt):
             {"role": "user", "content": prompt}
         ]
     }
-    response = requests.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload)
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"]
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                time.sleep(wait_time)
+                continue
+            raise e
+    raise Exception("Max retries exceeded for Mistral API due to rate limiting.")
 
 # 🧠 SQL Runner
 def run_sql_query(query):
@@ -190,7 +202,7 @@ Instructions:
 - Never invent a table or column.
 - If the user asks for all invoices or a summary of invoices, return a SQL query that combines both ap_invoices and ar_invoices using a UNION ALL. Make sure the column names match exactly (alias where necessary, e.g., vendor_id/customer_id to entity_id, and convert payment_received to payment_status using CASE WHEN payment_received THEN 'Paid' ELSE 'Unpaid' END).
  
- For consistency:
+For consistency:
 - In the final output (not the SQL), treat vendor_id and customer_id as a common entity_id.
 - In the final output, treat payment_status and payment_received both as payment_status with values 'Paid'/'Unpaid'.
 - But do not rename these fields in the actual SQL query unless required for UNION compatibility — use aliases only to make columns match.
@@ -212,7 +224,7 @@ Answer:
 
         table_text = result_df.to_markdown(index=False)
         summary_prompt = f"""You are a finance assistant. Convert the following SQL result into a clear, human-readable summary.
-If the data is tabular and has multiple rows, or is best presented as a table for clarity, include a markdown table in your response. Use markdown for tables only when required or helpful; otherwise, use plain text summaries. Avoid using markdown headers like ###.
+If the data is tabular and has multiple rows, or is best presented as a table for clarity, include a markdown table in your response. Use markdown for tables only when required or helpful (e.g., for lists of invoices, payments, or balances); otherwise, use plain text summaries. Avoid using markdown headers like ###.
 
 SQL Output:
 {table_text}
