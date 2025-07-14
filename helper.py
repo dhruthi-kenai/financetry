@@ -2,12 +2,17 @@ import os
 import requests
 import mysql.connector
 import pandas as pd
-import streamlit as st
+from dotenv import load_dotenv
 from msal import PublicClientApplication
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
+from sentence_transformers import SentenceTransformer
+import streamlit as st
+
+# Load environment variables (uncomment if not using Streamlit secrets exclusively)
+# load_dotenv()
 
 # 🔐 SharePoint Configuration
 CLIENT_ID = st.secrets["CLIENT_ID"]
@@ -15,11 +20,10 @@ TENANT_ID = st.secrets["TENANT_ID"]
 SHAREPOINT_HOST = st.secrets["SHAREPOINT_HOST"]
 SITE_NAME = st.secrets["SITE_NAME"]
 DOC_LIB_PATH = st.secrets["DOC_LIB_PATH"]
-
 EMBEDDINGS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 embeddings = HuggingFaceEmbeddings(model_name=EMBEDDINGS_MODEL)
 
-# ⚙️ Authenticate with Microsoft Graph
+# ⚙ Authenticate with Microsoft Graph
 def authenticate_microsoft():
     token_url = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
     payload = {
@@ -31,8 +35,8 @@ def authenticate_microsoft():
 
     response = requests.post(token_url, data=payload)
     response.raise_for_status()
-    return response.json()["access_token"]
 
+    return response.json()["access_token"]
 
 # 📥 Fetch SharePoint Documents
 def fetch_txt_files_from_sharepoint():
@@ -40,24 +44,19 @@ def fetch_txt_files_from_sharepoint():
     headers = {"Authorization": f"Bearer {token}"}
 
     site_resp = requests.get(
-        f"https://graph.microsoft.com/v1.0/sites/{SHAREPOINT_HOST}:/sites/{SITE_NAME}",
-        headers=headers
-    )
+        f"https://graph.microsoft.com/v1.0/sites/{SHAREPOINT_HOST}:/sites/{SITE_NAME}", headers=headers)
     site_resp.raise_for_status()
     site_id = site_resp.json()["id"]
 
     drives_resp = requests.get(
-        f"https://graph.microsoft.com/v1.0/sites/{site_id}/drives",
-        headers=headers
-    )
+        f"https://graph.microsoft.com/v1.0/sites/{site_id}/drives", headers=headers)
     drives_resp.raise_for_status()
     drive_id = next((d["id"] for d in drives_resp.json()["value"] if d["name"] == "Documents"), None)
 
     encoded_path = DOC_LIB_PATH.replace(" ", "%20")
     files_resp = requests.get(
         f"https://graph.microsoft.com/v1.0/sites/{site_id}/drives/{drive_id}/root:/{encoded_path}:/children",
-        headers=headers
-    )
+        headers=headers)
     files_resp.raise_for_status()
 
     docs = []
@@ -67,7 +66,6 @@ def fetch_txt_files_from_sharepoint():
             text_resp.raise_for_status()
             docs.append(Document(page_content=text_resp.text, metadata={"source": item["name"]}))
     return docs
-
 
 # 🔍 Get context using SharePoint + FAISS
 def get_context_from_docs(user_query):
@@ -83,7 +81,6 @@ def get_context_from_docs(user_query):
 
     results = vectorstore.similarity_search(user_query, k=1)
     return results[0].page_content if results else "No relevant document found."
-
 
 # 💬 Mistral LLM
 def call_llm(prompt):
@@ -102,7 +99,6 @@ def call_llm(prompt):
     response = requests.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload)
     response.raise_for_status()
     return response.json()["choices"][0]["message"]["content"]
-
 
 # 🧠 SQL Runner
 def run_sql_query(query):
@@ -124,12 +120,10 @@ def run_sql_query(query):
     except Exception as e:
         return f"SQL Error: {str(e)}"
 
-
 # 🧭 Route Query
 def route_query(user_query):
-    router_prompt = f"""You are a finance data assistant. Convert the following SQL result into a clear, human-readable summary.
-Avoid using markdown headers like ### or **bold**.
-
+    router_prompt = f"""You are a query router for a finance data assistant.
+    
 Use only the following MySQL tables and their columns. Always refer to them exactly as named. Never guess table or column names.
 
 ---
@@ -194,12 +188,12 @@ Instructions:
 - If the query is about policy, process, accounting rules, or how-to (like 'how to reverse a journal entry'), respond only with: DOCUMENT
 - Always use the correct table and column names.
 - Never invent a table or column.
-- If the user asks for all invoices or a summary of invoices, return a SQL query that combines both ap_invoices and ar_invoices using a UNION ALL. Make sure the column names match exactly, and add a column called invoice_type with values 'AP' or 'AR'.
-
-For consistency:
-- In the final *output* (not the SQL), treat vendor_id and customer_id as a common entity_id.
-- In the final *output*, treat payment_status and payment_received both as payment_status with values 'Paid'/'Unpaid'.
-- But do not rename these fields in the actual SQL query — use the original column names.
+- If the user asks for all invoices or a summary of invoices, return a SQL query that combines both ap_invoices and ar_invoices using a UNION ALL. Make sure the column names match exactly (alias where necessary, e.g., vendor_id/customer_id to entity_id, and convert payment_received to payment_status using CASE WHEN payment_received THEN 'Paid' ELSE 'Unpaid' END).
+ 
+ For consistency:
+- In the final output (not the SQL), treat vendor_id and customer_id as a common entity_id.
+- In the final output, treat payment_status and payment_received both as payment_status with values 'Paid'/'Unpaid'.
+- But do not rename these fields in the actual SQL query unless required for UNION compatibility — use aliases only to make columns match.
 
 Query: {user_query}
 Answer:
@@ -208,36 +202,28 @@ Answer:
     decision = call_llm(router_prompt).strip()
 
     if "SELECT" in decision.upper():
+        # Clean potential code block wrappers from LLM output
         cleaned_query = decision.replace("```sql", "").replace("```", "").strip()
         result_df = run_sql_query(cleaned_query)
+        if isinstance(result_df, str):
+            return result_df
+        elif result_df.empty:
+            return "No data found."
 
-        if isinstance(result_df, str):  # SQL error
-            return {"type": "error", "content": result_df}
-
-        if result_df.empty:
-            return {"type": "info", "content": "No data found."}
-
-        # Optional: generate a summary too
         table_text = result_df.to_markdown(index=False)
         summary_prompt = f"""You are a finance assistant. Convert the following SQL result into a clear, human-readable summary.
+If the data is tabular and has multiple rows, or is best presented as a table for clarity, include a markdown table in your response. Use markdown for tables only when required or helpful; otherwise, use plain text summaries. Avoid using markdown headers like ###.
 
 SQL Output:
 {table_text}
 
 Answer:"""
-        summary_text = call_llm(summary_prompt)
-
-        return {
-            "type": "table",
-            "data": result_df,
-            "summary": summary_text
-        }
+        return call_llm(summary_prompt)
 
     elif decision.upper().startswith("DOCUMENT"):
         context = get_context_from_docs(user_query)
         doc_prompt = f"Answer this user query based on the context below.\n\nContext:\n{context}\n\nQuestion: {user_query}"
-        doc_answer = call_llm(doc_prompt)
-        return {"type": "text", "content": doc_answer}
+        return call_llm(doc_prompt)
 
     else:
-        return {"type": "text", "content": decision}
+        return f"{decision}"

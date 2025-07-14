@@ -8,7 +8,7 @@ import os
 # 📦 Page setup
 st.set_page_config(page_title="💰 Finance Chatbot", layout="wide")
 
-# Clean layout
+# 💄 CSS: Clean layout
 st.markdown("""
     <style>
     div[data-testid="stForm"] {
@@ -25,14 +25,15 @@ st.markdown("""
 topcol1, topcol2 = st.columns([6, 1])
 
 with topcol1:
+    # Smaller gap between logo and title by adjusting column ratios
     logo_col, title_col = st.columns([1, 6])
     with logo_col:
-        st.image("kenai_logo1.png", width=150)
+        st.image("kenai_logo1.png", width=150)  # Increased from 60 to 80
     with title_col:
         st.markdown("<h1 style='margin-bottom: 0; padding-top: 2px;'> Finance Chatbot</h1>", unsafe_allow_html=True)
 
 with topcol2:
-    if st.button("♻️ Reindex Docs"):
+    if st.button("♻ Reindex Docs"):
         with st.spinner("Reindexing SharePoint documents..."):
             try:
                 docs = fetch_txt_files_from_sharepoint()
@@ -47,11 +48,11 @@ with topcol2:
             except Exception as e:
                 st.error(f"❌ Reindexing failed: {e}")
 
-# Initialize chat history
+# 🔁 Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# Chat input form
+# 💬 Chat input form
 with st.form("chat_form", clear_on_submit=True):
     col1, col2 = st.columns([5, 1])
     with col1:
@@ -59,43 +60,22 @@ with st.form("chat_form", clear_on_submit=True):
     with col2:
         submitted = st.form_submit_button("Submit")
 
-# Process query
+# 🧠 Process query
 if submitted and query:
     with st.spinner("Thinking..."):
         try:
             result = route_query(query)
-
-            if result["type"] == "table":
-                st.session_state.chat_history.insert(0, ("Bot-Summary", result["summary"]))
-                st.session_state.chat_history.insert(0, ("You", query))
-
-            elif result["type"] == "text":
-                st.session_state.chat_history.insert(0, ("Bot", result["content"]))
-                st.session_state.chat_history.insert(0, ("You", query))
-
-            elif result["type"] == "error":
-                st.session_state.chat_history.insert(0, ("Bot", result["content"]))
-                st.session_state.chat_history.insert(0, ("You", query))
-
-            elif result["type"] == "info":
-                st.session_state.chat_history.insert(0, ("Bot", result["content"]))
-                st.session_state.chat_history.insert(0, ("You", query))
-
+            st.session_state.chat_history.append(("You", query))
+            st.session_state.chat_history.append(("Bot", result))
         except Exception as e:
-            st.session_state.chat_history.insert(0, ("Error", f"Something went wrong: {e}"))
-            st.session_state.chat_history.insert(0, ("You", query))
+            st.session_state.chat_history.append(("You", query))
+            st.session_state.chat_history.append(("Error", f"Something went wrong: {e}"))
 
-# Show chat history
+# 🪵 Show chat history
 for role, content in st.session_state.chat_history:
     if role == "You":
-        st.markdown(f"<div style='font-weight:bold; font-size:18px;'> You: {content}</div>", unsafe_allow_html=True)
-
-    elif role == "Summary":
-        st.markdown(f" <b>Summary:</b>", unsafe_allow_html=True)
-        st.markdown(content, unsafe_allow_html=True)
-
-    elif role == "Bot":
-        st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px;'> {content}</div>", unsafe_allow_html=True)
-
+        st.markdown(f"<div style='font-weight:bold; font-size:18px;'>🧍‍♂ You: {content}</div>", unsafe_allow_html=True)
     elif role == "Error":
-        st.error(content)
+        st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px; color:red;'>❌ Error: {content}</div>", unsafe_allow_html=True)
+    else:  # Bot
+        st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px;'>🤖 {content}</div>", unsafe_allow_html=True)
