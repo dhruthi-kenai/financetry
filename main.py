@@ -66,16 +66,26 @@ if submitted and query:
         try:
             result = route_query(query)
             st.session_state.chat_history.append(("You", query))
-            st.session_state.chat_history.append(("Bot", result))
+            if isinstance(result, tuple):
+                summary, df = result
+                st.session_state.chat_history.append(("Bot", summary))
+                if df is not None and not df.empty:
+                    st.session_state.chat_history.append(("BotTable", df))
+            else:
+                st.session_state.chat_history.append(("Bot", result))
         except Exception as e:
             st.session_state.chat_history.append(("You", query))
             st.session_state.chat_history.append(("Error", f"Something went wrong: {e}"))
 
-# 🪵 Show chat history
-for role, content in st.session_state.chat_history:
+# 🪵 Show chat history (newest first)
+for role, content in reversed(st.session_state.chat_history):
     if role == "You":
         st.markdown(f"<div style='font-weight:bold; font-size:18px;'>🧍‍♂ You: {content}</div>", unsafe_allow_html=True)
     elif role == "Error":
         st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px; color:red;'>❌ Error: {content}</div>", unsafe_allow_html=True)
+    elif role == "BotTable":
+        st.dataframe(content, use_container_width=True)
     else:  # Bot
         st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px;'>🤖 {content}</div>", unsafe_allow_html=True)
+    if role in ["Bot", "Error", "BotTable"]:
+        st.divider()

@@ -215,27 +215,27 @@ Answer:
 
     if "SELECT" in decision.upper():
         # Clean potential code block wrappers from LLM output
-        cleaned_query = decision.replace("```sql", "").replace("```", "").strip()
+        cleaned_query = re.sub(r'```sql|```', '', decision).strip()
         result_df = run_sql_query(cleaned_query)
         if isinstance(result_df, str):
-            return result_df
+            return result_df, None
         elif result_df.empty:
-            return "No data found."
+            return "No data found.", None
 
         table_text = result_df.to_markdown(index=False)
-        summary_prompt = f"""You are a finance assistant. Convert the following SQL result into a clear, human-readable summary.
-If the data is tabular and has multiple rows, or is best presented as a table for clarity (e.g., lists of invoices, payments, or balances), include a markdown table in your response with relevant columns (e.g., Invoice Type, Total Invoices, Unpaid Invoices, Paid Invoices, Amount Range, Due Date Range, Payment Date Range). For summary queries like 'show all invoices,' provide a table summarizing key metrics (e.g., counts, ranges) by invoice type (AP/AR). Use plain text summaries for non-tabular data or single-row results. Avoid using markdown headers like ###.
+        summary_prompt = f"""You are a finance assistant. Provide a clear, human-readable summary of the following SQL result. Do not include any tables or markdown tables in your response, as the data will be displayed separately in an interactive table. Just describe the key insights, totals, trends, or notable points in plain text. Avoid using markdown headers like ###.
 
 SQL Output:
 {table_text}
 
 Answer:"""
-        return call_llm(summary_prompt)
+        summary = call_llm(summary_prompt)
+        return summary, result_df
 
     elif decision.upper().startswith("DOCUMENT"):
         context = get_context_from_docs(user_query)
         doc_prompt = f"Answer this user query based on the context below.\n\nContext:\n{context}\n\nQuestion: {user_query}"
-        return call_llm(doc_prompt)
+        return call_llm(doc_prompt), None
 
     else:
-        return f"{decision}"
+        return f"{decision}", None
