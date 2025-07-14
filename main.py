@@ -8,7 +8,7 @@ import os
 # 📦 Page setup
 st.set_page_config(page_title="💰 Finance Chatbot", layout="wide")
 
-# 💄 CSS: Clean layout
+# Clean layout
 st.markdown("""
     <style>
     div[data-testid="stForm"] {
@@ -47,11 +47,11 @@ with topcol2:
             except Exception as e:
                 st.error(f"❌ Reindexing failed: {e}")
 
-# 🔁 Initialize chat history
+# Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# 💬 Chat input form
+# Chat input form
 with st.form("chat_form", clear_on_submit=True):
     col1, col2 = st.columns([5, 1])
     with col1:
@@ -59,7 +59,7 @@ with st.form("chat_form", clear_on_submit=True):
     with col2:
         submitted = st.form_submit_button("Submit")
 
-# 🧠 Process query
+# Process query
 if submitted and query:
     with st.spinner("Thinking..."):
         try:
@@ -67,7 +67,6 @@ if submitted and query:
 
             if result["type"] == "table":
                 st.session_state.chat_history.insert(0, ("Bot-Summary", result["summary"]))
-                st.session_state.chat_history.insert(0, ("Bot-Table", result["data"]))
                 st.session_state.chat_history.insert(0, ("You", query))
 
             elif result["type"] == "text":
@@ -86,29 +85,17 @@ if submitted and query:
             st.session_state.chat_history.insert(0, ("Error", f"Something went wrong: {e}"))
             st.session_state.chat_history.insert(0, ("You", query))
 
-# 🪵 Show chat history
+# Show chat history
 for role, content in st.session_state.chat_history:
     if role == "You":
-        st.markdown(f"<div style='font-weight:bold; font-size:18px;'>🧍‍♂️ You: {content}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-weight:bold; font-size:18px;'> You: {content}</div>", unsafe_allow_html=True)
 
-    elif role == "Bot-Table":
-        st.markdown(f"🤖 <b>Bot - Table:</b>", unsafe_allow_html=True)
-        if isinstance(content, pd.DataFrame):
-            st.dataframe(content, use_container_width=True)
-        st.markdown("---")
-        st.markdown("💬 *Feel free to ask your next question!*")
-
-    elif role == "Bot-Summary":
-        st.markdown(f"🤖 <b>Bot - Summary:</b>", unsafe_allow_html=True)
-        st.markdown(content)
-        st.markdown("---")
-        st.markdown("💬 *What else can I help you with?*")
+    elif role == "Summary":
+        st.markdown(f" <b>Summary:</b>", unsafe_allow_html=True)
+        st.markdown(content, unsafe_allow_html=True)
 
     elif role == "Bot":
-        st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px;'>🤖 {content}</div>", unsafe_allow_html=True)
-        st.markdown("---")
-        st.markdown("💬 *Ready for your next question!*")
+        st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px;'> {content}</div>", unsafe_allow_html=True)
 
     elif role == "Error":
         st.error(content)
-        st.markdown("---")
