@@ -25,10 +25,9 @@ st.markdown("""
 topcol1, topcol2 = st.columns([6, 1])
 
 with topcol1:
-    # Smaller gap between logo and title by adjusting column ratios
     logo_col, title_col = st.columns([1, 6])
     with logo_col:
-        st.image("kenai_logo1.png", width=150)  # Increased from 60 to 80
+        st.image("kenai_logo1.png", width=150)
     with title_col:
         st.markdown("<h1 style='margin-bottom: 0; padding-top: 2px;'> Finance Chatbot</h1>", unsafe_allow_html=True)
 
@@ -65,22 +64,51 @@ if submitted and query:
     with st.spinner("Thinking..."):
         try:
             result = route_query(query)
-            st.session_state.chat_history.insert(0, ("Bot", result))
-            st.session_state.chat_history.insert(0, ("You", query))
+
+            if result["type"] == "table":
+                st.session_state.chat_history.insert(0, ("Bot-Summary", result["summary"]))
+                st.session_state.chat_history.insert(0, ("Bot-Table", result["data"]))
+                st.session_state.chat_history.insert(0, ("You", query))
+
+            elif result["type"] == "text":
+                st.session_state.chat_history.insert(0, ("Bot", result["content"]))
+                st.session_state.chat_history.insert(0, ("You", query))
+
+            elif result["type"] == "error":
+                st.session_state.chat_history.insert(0, ("Bot", result["content"]))
+                st.session_state.chat_history.insert(0, ("You", query))
+
+            elif result["type"] == "info":
+                st.session_state.chat_history.insert(0, ("Bot", result["content"]))
+                st.session_state.chat_history.insert(0, ("You", query))
+
         except Exception as e:
             st.session_state.chat_history.insert(0, ("Error", f"Something went wrong: {e}"))
+            st.session_state.chat_history.insert(0, ("You", query))
 
 # 🪵 Show chat history
 for role, content in st.session_state.chat_history:
-    if isinstance(content, pd.DataFrame):
-        if role == "You":
-            st.markdown(f"**You:**")
-        if not content.empty:
+    if role == "You":
+        st.markdown(f"<div style='font-weight:bold; font-size:18px;'>🧍‍♂️ You: {content}</div>", unsafe_allow_html=True)
+
+    elif role == "Bot-Table":
+        st.markdown(f"🤖 <b>Bot - Table:</b>", unsafe_allow_html=True)
+        if isinstance(content, pd.DataFrame):
             st.dataframe(content, use_container_width=True)
-        else:
-            st.info("No data found.")
-    else:
-        if role == "You":
-            st.markdown(f"<div style='font-weight:bold; font-size:18px;'>🧍‍♂️ You: {content}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px;'>🤖 {content}</div>", unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown("💬 *Feel free to ask your next question!*")
+
+    elif role == "Bot-Summary":
+        st.markdown(f"🤖 <b>Bot - Summary:</b>", unsafe_allow_html=True)
+        st.markdown(content)
+        st.markdown("---")
+        st.markdown("💬 *What else can I help you with?*")
+
+    elif role == "Bot":
+        st.markdown(f"<div style='margin-top: 0.5rem; font-size:16px;'>🤖 {content}</div>", unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown("💬 *Ready for your next question!*")
+
+    elif role == "Error":
+        st.error(content)
+        st.markdown("---")
