@@ -13,7 +13,7 @@ st.set_page_config(page_title="Finance Assist", page_icon=logo)
 
 # Sidebar with logo
 st.sidebar.image(logo, use_column_width=True)
-st.sidebar.title("Finance Assist")
+st.sidebar.title("Finance Assist1s")
 
 st.title("Finance Assist ")
 st.write("You can ask anything — from invoices & documents to general questions like 'Hi, how are you?' — and I will respond!")
