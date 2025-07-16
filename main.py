@@ -7,7 +7,7 @@ from PIL import Image
 import os
 
 # Load Kenai logo
-logo = Image.open("kenai_logo11.png")
+logo = Image.open("kenai_logo1.png")
 
 st.set_page_config(page_title="Finance Assist", page_icon=logo)
 
