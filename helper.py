@@ -2,14 +2,12 @@
 
 import mysql.connector
 import requests
-import openai
 import pandas as pd
 import streamlit as st
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.docstore.document import Document
 from langchain.embeddings.openai import OpenAIEmbeddings
-import os
 
 FAISS_INDEX_PATH = "faiss_index"
 
@@ -103,16 +101,26 @@ def search_faiss(query):
 
 # 🔷 Call Mistral LLM
 def call_mistral(prompt):
-    openai.api_key = st.secrets["MISTRAL_API_KEY"]
+    headers = {
+        "Authorization": f"Bearer {st.secrets['MISTRAL_API_KEY']}",
+        "Content-Type": "application/json"
+    }
 
-    response = openai.ChatCompletion.create(
-        model="mistral-large-latest",
-        messages=[
+    data = {
+        "model": "mistral-large-latest",
+        "messages": [
             {"role": "system", "content": "You are a helpful assistant. Answer general or document-related questions. If data is tabular, reply in Markdown table."},
             {"role": "user", "content": prompt}
         ]
+    }
+
+    response = requests.post(
+        "https://api.mistral.ai/v1/chat/completions",
+        headers=headers,
+        json=data
     )
-    return response.choices[0].message["content"]
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
 
 
 # 🔷 Compose Context & Get Answer
