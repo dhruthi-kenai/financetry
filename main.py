@@ -1,97 +1,46 @@
 import streamlit as st
 import pandas as pd
-from helper import route_query, fetch_txt_files_from_sharepoint, embeddings
+from helper import generate_answer, reindex_documents
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from PIL import Image
 import os
- 
-# 📦 Page setup
-st.set_page_config(page_title="💰 Finance Chatbot", layout="wide")
- 
-# 💄 CSS: Clean layout
-st.markdown("""
-    <style>
-    div[data-testid="stForm"] {
-        border: none;
-        padding: 0;
-    }
-    div[data-testid="column"] {
-        padding-bottom: 0rem;
-    }
-    </style>
-""", unsafe_allow_html=True)
- 
-# 🧭 Top row: logo + title + reindex button
-topcol1, topcol2 = st.columns([6, 1])
- 
-with topcol1:
-    # Smaller gap between logo and title by adjusting column ratios
-    logo_col, title_col = st.columns([1, 6])
-    with logo_col:
-        st.image("kenai_logo1.png", width=150)  # Increased from 60 to 80
-    with title_col:
-        st.markdown("<h1 style='margin-bottom: 0; padding-top: 2px;'> Finance Chatbot</h1>", unsafe_allow_html=True)
- 
-with topcol2:
-    if st.button("♻️ Reindex Docs"):
-        with st.spinner("Reindexing SharePoint documents..."):
-            try:
-                docs = fetch_txt_files_from_sharepoint()
-                if not docs:
-                    st.error("No documents found in SharePoint.")
-                else:
-                    splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-                    chunks = splitter.split_documents(docs)
-                    vectorstore = FAISS.from_documents(chunks, embeddings)
-                    vectorstore.save_local("./vector_index")
-                    st.success("✅ Reindexing complete.")
-            except Exception as e:
-                st.error(f"❌ Reindexing failed: {e}")
- 
-# 🔁 Initialize chat history
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
- 
-# 💬 Chat input form
-with st.form("chat_form", clear_on_submit=True):
-    col1, col2 = st.columns([5, 1])
-    with col1:
-        query = st.text_input("Ask a finance-related question:", key="query", label_visibility="collapsed")
-    with col2:
-        submitted = st.form_submit_button("Submit")
- 
-# 🧠 Process query
-if submitted and query:
+
+# Load Kenai logo
+logo = Image.open("kenai_logo11.png")
+
+st.set_page_config(page_title="Finance Assist", page_icon=logo)
+
+# Sidebar with logo
+st.sidebar.image(logo, use_column_width=True)
+st.sidebar.title("Finance Assist")
+
+st.title("Finance Assist ")
+st.write("You can ask anything — from invoices & documents to general questions like 'Hi, how are you?' — and I will respond!")
+
+col1, col2 = st.columns([4,1])
+
+with col1:
+    user_query = st.text_input("Your question:", "Hi, how are you?")
+
+with col2:
+    if st.button("🔄 Reindex Docs"):
+        with st.spinner("Reindexing documents with FAISS..."):
+            reindex_documents()
+        st.success("Documents reindexed with FAISS!")
+
+if st.button("Submit"):
     with st.spinner("Thinking..."):
-        try:
-            result = route_query(query)
-            st.session_state.chat_history.insert(0, ("Bot", result))
-            st.session_state.chat_history.insert(0, ("You", query))
-        except Exception as e:
-            st.session_state.chat_history.insert(0, ("Error", f"Something went wrong: {e}"))
- 
-# 🪵 Show chat history
-for role, content in st.session_state.chat_history:
-    if isinstance(content, pd.DataFrame):
-        if role == "You":
-            st.markdown(f"**You:**")
-        if not content.empty:
-            st.dataframe(content, use_container_width=True)
-        else:
-            st.info("No data found.")
-    else:
-        if role == "You":
-            st.markdown(
-                f"<div style='font-weight:bold; font-size:18px;'>🧍‍♂️ You: {content}</div>",
-                unsafe_allow_html=True
-            )
-        else:
-            st.markdown(
-                f"<div style='margin-top: 0.5rem; font-size:16px;'>🤖 {content}</div>",
-                unsafe_allow_html=True
-            )
-            # 🔷 Add horizontal line after bot response
-            st.markdown(
-                "<hr style='border:0; border-top:1px solid #eee; margin:0.5rem 0;' />",
-                unsafe_allow_html=True
-            )
+        sql_df, answer = generate_answer(user_query)
+
+    if not sql_df.empty:
+        st.markdown("### Latest SQL Data:")
+        st.dataframe(sql_df)
+
+    st.markdown("### Answer:")
+    st.markdown(answer, unsafe_allow_html=True)
+
+    # Thin line separator
+    st.markdown("<hr style='border: 1px solid #ddd;'>", unsafe_allow_html=True)
+
+# Note: SQL data is shown in table, LLM answers can also be in Markdown tables when appropriate.
